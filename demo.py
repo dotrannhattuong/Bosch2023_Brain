@@ -12,7 +12,7 @@ from collections import Counter
 
 class Lane_Detection:
     def __init__(self):
-        self.__width = 220
+        self.__width = 230
 
     def __call__(self, image):
         image = self.image_processing(image)
@@ -107,13 +107,13 @@ class Lane_Detection:
                         x_right.append(max_index)
                         continue
 
-                if max_index >= 300:
-                    y_right.append(i)
-                    x_right.append(max_index)
+                # if max_index >= 300:
+                y_right.append(i)
+                x_right.append(max_index)
 
-                if min_index <= 300:
-                    y_left.append(i)
-                    x_left.append(min_index)
+                # if min_index <= 300:
+                y_left.append(i)
+                x_left.append(min_index)
 
             except:
                 pass
@@ -122,7 +122,7 @@ class Lane_Detection:
         try:
             a_r, b_r, r_r, p_r, std_err_r = stats.linregress(x_right, y_right)
             pre_r = (45-b_r)/a_r
-
+            
             if len(x_left) != 0:
                 a_l, b_l, r_l, p_l, std_err_l = stats.linregress(x_left, y_left)
                 pre_l = (45-b_l)/a_l
@@ -170,12 +170,12 @@ if __name__ == "__main__":
     #                         cv2.VideoWriter_fourcc(*'MJPG'),
     #                         40, size)
 
-    cap = cv2.VideoCapture("./record_3.avi")
+    cap = cv2.VideoCapture("./videos/record_2.avi")
 
     while(cap.isOpened()):
         ret, frame = cap.read()
         h, w, c = frame.shape
-        frame = frame[400:600, w//2:, :]
+        frame = frame[400:600, w//2:int(w-(w/2-1000)), :]
 
         if ret == True:
             #====================segment==============================
