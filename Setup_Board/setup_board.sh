@@ -45,7 +45,7 @@ cd ../
 # pip3 install onnx>=1.9.0
 
 # Pycuda 
-pip3 install pycuda
+bash ./install_pycuda.sh
 
 # RealSense
 ./buildLibrealsense.sh
