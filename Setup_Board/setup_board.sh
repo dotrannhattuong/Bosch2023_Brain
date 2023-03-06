@@ -5,8 +5,8 @@ sudo apt install python3-pil
 sudo apt-get install libhdf5-serial-dev hdf5-tools libhdf5-dev zlib1g-dev zip libjpeg8-dev liblapack-dev libblas-dev gfortran libopenblas-dev
 pip3 install --upgrade pip
 pip3 install --upgrade setuptools
-python3 -m pip install aiohttp numpy=='1.19.4' scipy=='1.5.3'
-python3 -m pip install --upgrade protobuf
+# python3 -m pip install aiohttp numpy=='1.19.4' scipy=='1.5.3'
+# python3 -m pip install --upgrade protobuf
 
 # Jtop 
 sudo pip3 install jetson-stats
@@ -14,12 +14,6 @@ sudo pip3 install jetson-stats
 # Nomachine
 wget https://www.nomachine.com/free/arm/v8/deb -O nomachine.deb
 sudo dpkg -i nomachine.deb
-
-# nvcc
-sudo gedit ~/.bashrc
-export PATH=${PATH}:/usr/local/cuda/bin
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/cuda/lib64
-source ~/.bashrc
 
 # Pytorch
 wget https://nvidia.box.com/shared/static/p57jwntv436lfrd78inwl7iml6p13fzh.whl -O torch-1.8.0-cp36-cp36m-linux_aarch64.whl
@@ -50,6 +44,5 @@ bash ./install_pycuda.sh
 # RealSense
 ./buildLibrealsense.sh
 sudo gedit ~/.bashrc
-export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.6/pyrealsense2
 source ~/.bashrc
 
