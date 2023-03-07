@@ -21,7 +21,7 @@ class Communication:
         send_1 = (np.uint16(speed) >> 8).astype(np.uint8)
         send_2 = np.uint8(angle)
 
-        send_data = [send_0, send_1, send_2]
+        send_data = [send_0, send_1, send_2, 25]
         self.stm32.write(send_data)
 
         ###### Decode - DEBUG ######
@@ -42,8 +42,4 @@ if __name__ == "__main__":
 
     while True:
         stm32(speed=0, angle=0)
-
-
-
-
     
