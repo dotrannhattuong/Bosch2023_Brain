@@ -10,7 +10,7 @@ class Communication:
         speed = self.speed_limit(speed)
         angle = self.angle_limit(angle)
 
-        print(speed)
+        # print(speed)
         ############ Receive DATA ############
         # data = ser.readline().decode('utf-8')
         # print(f"data: {ser.readline().decode('utf-8')}")
@@ -25,8 +25,8 @@ class Communication:
         self.stm32.write(send_data)
 
         ###### Decode - DEBUG ######
-        print(f"Speed: {np.int16(send_1<<8)|send_0}")
-        print(f"Angle: {np.int8(send_2)}")
+        # print(f"Speed: {np.int16(send_1<<8)|send_0}")
+        # print(f"Angle: {np.int8(send_2)}")
 
     @staticmethod
     def speed_limit(speed):

@@ -3,49 +3,63 @@ from utils.ser import Communication
 from utils.controller import Controller
 from utils.my_unet import Unet
 from utils.my_realsense import RealSense
+from utils.image_processing import img_processing
+import numpy as np
+import time
 
 def main():
     # --------- Segment ---------#
-    segment = Unet(weights='bosch_3c_sof.onnx')
+    segment = Unet(weights='bosch_sig_1c_16x12.onnx')
+    kernel = np.ones((5,5),np.uint8)
 
     # --------- Communication ---------#
-    # stm32 = Communication(port='/dev/ttyACM0')
+    stm32 = Communication(port='/dev/ttyACM0')
 
     # --------- Controller ---------#
-    # Control = Controller(1, 0.05)
-
+    Control = Controller(0.3, 0.05)
+    
     # --------- RealSense ---------# 
     realsense = RealSense()
 
     # --------- Write Video ---------# 
-    # result = cv2.VideoWriter('filename.avi', 
+    # result = cv2.VideoWriter('videochoLamLe.avi', 
     #                         cv2.VideoWriter_fourcc(*'MJPG'),
-    #                         10, (160, 80))
+    #                         10, (320, 120))
 
-    try:
-        while True:
+    time.sleep(2)
+    
+    while True:
+        try:   
             color_image, depth_frame, depth_colormap = realsense()
 
             # ------------------ Predict ------------------#
             # --------- Segment ---------#
             pred = segment(color_image)
+            # output = img_processing(color_image)
+            # post_img = cv2.bitwise_or(pred, output)
 
-            cv2.imshow('input', color_image)
+            cv2.imshow('input', cv2.resize(color_image, (160, 80)))
             cv2.imshow('pred', pred)
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                realsense.pipeline.stop()
                 break
-            # result.write(cv2.cvtColor(pred, cv2.COLOR_GRAY2RGB))
+            
+            # write_frame = np.hstack((cv2.cvtColor(pred, cv2.COLOR_GRAY2BGR), cv2.resize(color_image[160:, :, :], (160, 120))))
+            # result.write(write_frame)
+            # result.write(color_image)
 
             # ------------------ Workspace ------------------#
             # --------- Controller ---------#
-            # sendBack_angle, sendBack_speed = Control(pred, sendBack_speed=120, height=15, signal='straight', area=10)
+            sendBack_angle, sendBack_speed = Control(pred, sendBack_speed=100, height=30, signal='straight', area=10)
             
             # --------- Send Data ---------#
-            # stm32(speed=sendBack_speed,angle=sendBack_angle)
+            stm32(speed=sendBack_speed,angle=sendBack_angle)
 
-    finally:
-        realsense.pipeline.stop()
-        # result.release()
+        except Exception as e:
+            print(e)
+            # result.release()
+            continue
+        
 
 if __name__ == "__main__":
     main()
