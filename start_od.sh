@@ -1,0 +1,1 @@
+sudo ip ad add 10.0.0.30/24 dev eth0
