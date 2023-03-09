@@ -12,7 +12,7 @@ from collections import OrderedDict,namedtuple
 from my_realsense import RealSense
 
 class YOLO_DETECT:
-    def __init__(self, engine_path='./yolov7-tiny-nms.trt', imgsz=(418,418), device='cuda:0'):
+    def __init__(self, engine_path='./best-nms.trt', imgsz=(418,418), device='cuda:0'):
         self.__device = torch.device(device)
         self.__imgsz = imgsz
         
@@ -33,15 +33,8 @@ class YOLO_DETECT:
         self.context = model.create_execution_context()
 
         # Visualize
-        self.__names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 
-        'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 
-        'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 
-        'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 
-        'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 
-        'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 
-        'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 
-        'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 
-        'hair drier', 'toothbrush']
+        self.__names = ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', 'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', 'stop_sign', 'traffic_light', 'none']
+
         self.__colors = {name:[random.randint(0, 255) for _ in range(3)] for i,name in enumerate(self.__names)}
 
         # warmup
@@ -153,10 +146,10 @@ class YOLO_DETECT:
         
 if __name__ == "__main__":
     
-    detector = YOLO_DETECT(engine_path='./yolov7-tiny-nms.trt', imgsz=(448,448))
+    detector = YOLO_DETECT(engine_path='./weights/yolo/best-v1-nms.trt', imgsz=(448,448))
 
     ####### Image #######
-    img = cv2.imread('./inference/images/horses.jpg')
+    img = cv2.imread('./utils/images/448.png')
 
     # Detect
     boxes, scores, classes = detector(img)
@@ -170,23 +163,20 @@ if __name__ == "__main__":
     ####### RealSense #######
     realsense = RealSense()
 
-    try:
-        while True:
-            # Get image
-            color_image, depth_frame, depth_colormap = realsense()
+    while True:
+        # Get image
+        color_image, depth_frame, depth_colormap = realsense()
 
-            # Detect
-            boxes, scores, classes = detector(color_image)
+        # Detect
+        boxes, scores, classes = detector(color_image)
 
-            # Visualize
-            img_pred = detector.visualize(color_image, boxes, scores, classes, depth_frame)
+        # Visualize
+        img_pred = detector.visualize(color_image, boxes, scores, classes, depth_frame)
 
-            # Show images
-            cv2.imshow('RealSense', img_pred)
+        # Show images
+        cv2.imshow('RealSense', img_pred)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-    finally:
-        # Stop streaming
-        realsense.pipeline.stop()
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            # Stop streaming
+            realsense.pipeline.stop()
+            break        
