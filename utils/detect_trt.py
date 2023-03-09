@@ -8,9 +8,9 @@ from PIL import Image
 from pathlib import Path
 from collections import OrderedDict,namedtuple
 
-w = './yolov7-tiny-nms.trt'
+w = './weights/yolo/best-v1-nms.trt'
 device = torch.device('cuda:0')
-img = cv2.imread('./inference/images/horses.jpg')
+img = cv2.imread('./utils/images/448.png')
 
 # Infer TensorRT Engine
 Binding = namedtuple('Binding', ('name', 'dtype', 'shape', 'data', 'ptr'))
@@ -63,15 +63,8 @@ def postprocess(boxes,r,dwdh):
     boxes /= r
     return boxes
 
-names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 
-         'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 
-         'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 
-         'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 
-         'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 
-         'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 
-         'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 
-         'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 
-         'hair drier', 'toothbrush']
+names = ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', 'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', 'stop_sign', 'traffic_light', 'none']
+
 colors = {name:[random.randint(0, 255) for _ in range(3)] for i,name in enumerate(names)}
 
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
