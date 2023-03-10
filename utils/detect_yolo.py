@@ -16,6 +16,16 @@ class YOLO_DETECT:
         self.__device = torch.device(device)
         self.__imgsz = imgsz
         
+        self.GHSVLOW = np.array([45, 100, 100])
+        self.GHSVHIGH = np.array([90, 255, 255])
+        self.YHSVLOW = np.array([20, 100, 100])
+        self.YHSVHIGH = np.array([40, 255, 255])
+        self.RHSVLOW = np.array([160,100,100])
+        self.RHSVHIGH = np.array([180,255,255])
+        self.RHSVLOW_1 = np.array([0,70,50])
+        self.RHSVHIGH_1 = np.array([10,255,255])
+
+
         # Infer TensorRT Engine
         Binding = namedtuple('Binding', ('name', 'dtype', 'shape', 'data', 'ptr'))
         logger = trt.Logger(trt.Logger.INFO)
@@ -143,7 +153,45 @@ class YOLO_DETECT:
             cv2.putText(img, name, (int(box[0]), int(box[1]) - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, thickness=2)
 
         return img
+
+    @staticmethod
+    def traffic_light_det(img, boxes): # boxes: x,y,w,h
+        '''
+        input: img, box
+        output: 0: red, 1: yellow, 2: green
+        '''
+        # TODO: Check boxes
+        x, y, w, h = self.__imgsz[0]*boxes[0], self.__imgsz[0]*boxes[1], self.__imgsz[0]*boxes[2], self.__imgsz[0]*boxes[3]
         
+        x1 = int(x - w/2)
+        y1 = int(y - h/2)
+        x2 = int(x + w/2)
+        y2 = int(y + h/2)
+
+        img_crop = img_crop[y1:y2, x1:x2]
+        img_hsv = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
+
+        maskg = cv2.inRange(img_hsv, self.GHSVLOW, self.GHSVHIGH)
+        masky = cv2.inRange(img_hsv, self.YHSVLOW, self.YHSVHIGH)
+        maskr_1 = cv2.inRange(img_hsv, self.RHSVLOW, self.RHSVHIGH)
+        maskr_2 = cv2.inRange(img_hsv, self.RHSVLOW_1, self.RHSVHIGH_1)
+        maskr = maskr_1 | maskr_2
+
+        area = [self.check(mask) for mask in [maskr, masky, maskg]]
+        index = area.index(max(area))
+        return index
+
+    @staticmethod
+    def check(mask):
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        if len(contours) == 0:
+            return 0
+        max_contour = max(contours, key = cv2.contourArea)
+        area = cv2.contourArea(max_contour)
+        return area
+
+    
+
 if __name__ == "__main__":
     
     detector = YOLO_DETECT(engine_path='./weights/yolo/best-v1-nms.trt', imgsz=(448,448))
@@ -172,11 +220,12 @@ if __name__ == "__main__":
 
         # Visualize
         img_pred = detector.visualize(color_image, boxes, scores, classes, depth_frame)
-
+        print(boxes)
+        cv2.imwrite('pred.png', img_pred)
         # Show images
-        cv2.imshow('RealSense', img_pred)
+        # cv2.imshow('RealSense', img_pred)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            # Stop streaming
-            realsense.pipeline.stop()
-            break        
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     # Stop streaming
+        #     realsense.pipeline.stop()
+        #     break        

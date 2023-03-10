@@ -4,7 +4,7 @@ import cv2
 
 
 class RealSense:
-    def __init__(self):
+    def __init__(self, distance_set= 1):
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
         config = rs.config()
@@ -24,51 +24,56 @@ class RealSense:
             print("The demo requires Depth camera with Color sensor")
             exit(0)
 
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
 
         if device_product_line == 'L500':
-            config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+            config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 60)
         else:
-            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
 
         # Start streaming
-        self.pipeline.start(config)
+        profile = self.pipeline.start(config)
+        depth_sensor = profile.get_device().first_depth_sensor()
+        depth_scale = depth_sensor.get_depth_scale()
+
+        clipping_distance_in_meters = distance_set #1 meter
+        self.clipping_distance = clipping_distance_in_meters / depth_scale
+        align_to = rs.stream.color
+        self.align = rs.align(align_to)
 
     def __call__(self):
         # Wait for a coherent pair of frames: depth and color
         frames = self.pipeline.wait_for_frames()
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
+        aligned_frames = self.align.process(frames)
+
+        depth_frame = aligned_frames.get_depth_frame()
+        color_frame = aligned_frames.get_color_frame()
+        # if not depth_frame or not color_frame:
+        #     continue
 
         # Convert images to numpy arrays
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
-        # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
+        grey_color = 0
+        depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
+        bg_removed = np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+        images = np.hstack((bg_removed, depth_colormap))
 
-        return color_image, depth_frame, depth_colormap
+        return bg_removed, depth_colormap, images
 
 if __name__ == "__main__":
     realsense = RealSense()
 
     try:
         while True:
-            color_image, depth_frame, depth_colormap = realsense()
+            color_image, depth_frame, depth_colormap, images = realsense()
 
             depth_colormap_dim = depth_colormap.shape
             color_colormap_dim = color_image.shape
 
-            # If depth and color resolutions are different, resize color image to match depth image for display
-            if depth_colormap_dim != color_colormap_dim:
-                resized_color_image = cv2.resize(color_image, dsize=(depth_colormap_dim[1], depth_colormap_dim[0]), interpolation=cv2.INTER_AREA)
-                images = np.hstack((resized_color_image, depth_colormap))
-            else:
-                images = np.hstack((color_image, depth_colormap))
-
-            # Show images
-            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-            cv2.imshow('RealSense', images)
+            cv2.imshow('RealSense', cv2.resize(images, (1280//4, 480//4)))
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break

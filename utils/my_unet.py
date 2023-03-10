@@ -10,27 +10,44 @@ class Unet:
 
     def road_lines(self, color_image, session, inputname):
         image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
-        # Crop ảnh lại, lấy phần ảnh có làn đườngs
-        image = image[160:, :, :]
-        image = cv2.resize(image, (160, 120))
+        image = image[200:, :, :]
+        image = cv2.resize(image, (160, 80))
         image = image/255
-        image = np.array(image, dtype=np.float32)
-        # print(image.shape)
-        # image = image.transpose(2, 0, 1)
-        # print(image.shape)
+        image = np.array(image, dtype=np.float32) # H x W x 3
+        # image = np.swapaxes(image, -1, 0) # 3 x H x W
+        # image = np.swapaxes(image, -1, 1) # 3 x W x H
+        image = image.transpose((2, 0, 1))
         image = image[None, :, :, :]
         prediction = session.run(None, {inputname: image})
         prediction = np.squeeze(prediction)
-
-        # prediction = np.argmax(prediction, -1)
-        # prediction = np.where(prediction == 1, 255, prediction)
-        # prediction = np.where(prediction == 2, 255, prediction)
-        # prediction = prediction.astype(np.uint8)
-
         prediction = np.where(prediction > 0.5, 255, 0)
         prediction = prediction.astype(np.uint8)
-
         return prediction
+
+    ##### UIT #####
+    # def road_lines(self, color_image, session, inputname):
+    #     image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+    #     # Crop ảnh lại, lấy phần ảnh có làn đườngs
+    #     image = image[160:, :, :]
+    #     image = cv2.resize(image, (160, 120))
+    #     image = image/255
+    #     image = np.array(image, dtype=np.float32)
+    #     # print(image.shape)
+    #     # image = image.transpose(2, 0, 1)
+    #     # print(image.shape)
+    #     image = image[None, :, :, :]
+    #     prediction = session.run(None, {inputname: image})
+    #     prediction = np.squeeze(prediction)
+
+    #     # prediction = np.argmax(prediction, -1)
+    #     # prediction = np.where(prediction == 1, 255, prediction)
+    #     # prediction = np.where(prediction == 2, 255, prediction)
+    #     # prediction = prediction.astype(np.uint8)
+
+    #     prediction = np.where(prediction > 0.5, 255, 0)
+    #     prediction = prediction.astype(np.uint8)
+
+    #     return prediction
 
     @staticmethod
     def remove_small_contours(image):

@@ -37,16 +37,16 @@ class Controller:
         
         #### Safe Mode ####
         self.width=self.maxLane - self.minLane
-        print(f"width: {self.width}")
+        # print(f"width: {self.width}")
 
         if 20 <= self.width <= self.__ONE_LANEWIGHT:
-            print('1111')
+            # print('1111')
             pass
         elif self.__ONE_LANEWIGHT < self.width <= self.__TWO_LANEWIGHT:
-            print('2222')
+            # print('2222')
             center = int((center + self.maxLane) / 2)
         else:
-            print('3333')
+            # print('3333')
             center = int(self.maxLane - self.__ONE_LANEWIGHT/2)
 
         #### Cua sớm ####
@@ -88,13 +88,13 @@ class Controller:
         ####### Angle Processing #######
         self.error = self.findingLane(frame, height)
         self.__sendBack_angle = -self.__PID(self.error)
-        print(f"angle: {self.__sendBack_angle}")
+        # print(f"angle: {self.__sendBack_angle}")
         ####### Speed Processing #######
         self.__sendBack_speed =  sendBack_speed # self.__linear(self.error)
 
         #### Traffic Sign Processing ####
         # if 2000 <= area <= 4000:
-        #     # print(signal, area)
+            # print(signal, area)
         #     if signal == 'camtrai':
         #         self.__turn_mode = 'right'
         #     elif signal == 'camphai':
