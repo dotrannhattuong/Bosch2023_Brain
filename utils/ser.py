@@ -2,7 +2,7 @@ import serial
 import numpy as np
 
 class Communication:
-    def __init__(self, port="/dev/ttyACM1", baudrate=115200):
+    def __init__(self, port="/dev/ttyACM0", baudrate=115200):
         self.stm32 = serial.Serial(port, baudrate, timeout=0.1)
     
     def __call__(self, speed=100, angle=0):
@@ -41,5 +41,5 @@ if __name__ == "__main__":
     stm32 = Communication()
 
     while True:
-        stm32(speed=0, angle=0)
+        stm32(speed=100, angle=-25)
     

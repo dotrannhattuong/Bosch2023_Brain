@@ -20,7 +20,7 @@ class Unet:
         image = image[None, :, :, :]
         prediction = session.run(None, {inputname: image})
         prediction = np.squeeze(prediction)
-        prediction = np.where(prediction > 0.5, 255, 0)
+        prediction = np.where(prediction > 0.2, 255, 0)
         prediction = prediction.astype(np.uint8)
         return prediction
 

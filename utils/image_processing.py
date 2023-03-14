@@ -16,3 +16,14 @@ def img_processing(img):
     output = cv2.bitwise_and(canny, poly)
     output = cv2.resize(output, (160,80))
     return output
+
+def lamle(mask_input):
+    mask = np.zeros(mask_input.shape, np.uint8)
+    dst_bw = cv2.dilate(mask_input, None, iterations=2)
+    contours, _ = cv2.findContours(image=dst_bw, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE)
+    for con in contours:
+        area = cv2.contourArea(con)
+        if area>100:
+            cv2.fillPoly(mask, pts =[con], color=(255,255,255))
+    output = cv2.bitwise_and(mask_input, mask_input, mask=mask)
+    return output, mask

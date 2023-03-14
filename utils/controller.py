@@ -1,24 +1,37 @@
 import time
 import numpy as np
 import cv2
+from utils.my_bno055 import BNO055
+from utils.ser import Communication
 
 pre_t = time.time()
 error_arr = np.zeros(5)
-
-
     
 class Controller:
     def __init__(self, kp, kd):
         self.__kp = kp
         self.__kd = kd
-        self.__ONE_LANEWIGHT = 65     # Độ rộng đường (pixel)
+        self.__ONE_LANEWIGHT = 70     # Độ rộng đường (pixel)
         self.__TWO_LANEWIGHT = self.__ONE_LANEWIGHT * 2 + 20
-        self.width = 65
+        self.width = self.__ONE_LANEWIGHT
 
         self.mode = 0
         self.__turn_mode = 'None'
 
         self.__error = 0
+
+        self.my_imu = BNO055()
+        self.status = True
+
+        self.__names = ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', \
+        'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', \
+        'stop_sign', 'traffic_light', 'none', 'red', 'yellow', 'green']
+
+        self.stm32 = Communication(port='/dev/ttyACM0')
+
+        self.signs = 'straight'
+        
+        self.flag = 0
 
     def findingLane(self, frame, height):
         arr_normal = []
@@ -40,14 +53,11 @@ class Controller:
         # print(f"width: {self.width}")
 
         if 20 <= self.width <= self.__ONE_LANEWIGHT:
-            # print('1111')
             pass
         elif self.__ONE_LANEWIGHT < self.width <= self.__TWO_LANEWIGHT:
-            # print('2222')
             center = int((center + self.maxLane) / 2)
         else:
-            # print('3333')
-            center = int(self.maxLane - self.__ONE_LANEWIGHT/2)
+            center = int(self.maxLane - self.__ONE_LANEWIGHT/2 - 10)
 
         #### Cua sớm ####
         # if (0 < self.width < self.__LANEWIGHT):
@@ -80,31 +90,99 @@ class Controller:
 
         return int(angle)
 
-    def __linear(self, error):
-        return int(-0.15*abs(error) + 25)
+    def __timer_intersection(self, time_straight, sendBack_speed, sendBack_angle, setpoint_turn):
+        ### Stage 1 ###
+        start_time = time.time()
+        while(time.time() - start_time < time_straight):
+            self.stm32(speed=sendBack_speed,angle=0)
 
-    def __call__(self, frame, sendBack_speed, height, signal, area):
-        self.signal = signal
+        ### Stage 2 ###
+        initial_yaw = self.my_imu.read_yaw()
+        degree_turn = 0
+
+        while degree_turn < setpoint_turn:
+            degree_turn = self.my_imu(initial_yaw)
+            self.stm32(speed=sendBack_speed,angle=sendBack_angle)
+
+        ##### Restart Status #####
+        self.status = True
+        self.signs = 'straight'
+        self.distance = 100
+
+    def __timer_stop(self, timer_stop, timer_straight, speed_straight):
+        ### Stage 1.1 ###
+        start_time = time.time()
+        while(time.time() - start_time < 0.2):
+            self.stm32(speed=speed_straight,angle=0)
+
+        ### Stage 1 ###
+        start_time = time.time()
+        while(time.time() - start_time < timer_stop):
+            self.stm32(speed=0,angle=0)
+
+        ### Stage 2 ###
+        start_time = time.time()
+        while(time.time() - start_time < timer_straight):
+            self.stm32(speed=speed_straight,angle=0)
+
+        ##### Restart Status #####
+        self.status = True
+        self.signs = 'straight'
+        self.distance = 100
+
+    def __timer_light(self):
+        self.stm32(speed=0,angle=0)
+
+    def __call__(self, frame, sendBack_speed, height, class_id, distance):
+        signs = self.__names[class_id]
+
+        # if self.status == True:
+        # self.distance = distance
+
+        # if self.distance <= 0.8 and self.status == True:
+        #     self.signs = signs
+        #     self.status = False
+
+        # print('*'*60)
+        print(signs, '-', distance)
+        # print('*'*60)
+
         ####### Angle Processing #######
         self.error = self.findingLane(frame, height)
         self.__sendBack_angle = -self.__PID(self.error)
-        # print(f"angle: {self.__sendBack_angle}")
         ####### Speed Processing #######
         self.__sendBack_speed =  sendBack_speed # self.__linear(self.error)
 
         #### Traffic Sign Processing ####
-        # if 2000 <= area <= 4000:
-            # print(signal, area)
-        #     if signal == 'camtrai':
-        #         self.__turn_mode = 'right'
-        #     elif signal == 'camphai':
-        #         self.__turn_mode = 'left'
-        #     elif signal == 'phai':
-        #         self.__turn_mode = 'right'
-        #     elif signal == 'trai':
-        #         self.__turn_mode = 'left'
-        #     elif signal == 'thang':
-        #         self.__turn_mode = 'straight'
+        if signs == 'green':
+            self.flag = 0
 
+        if 0.2 <= distance <= 0.70 and self.flag == 0:
+            self.signs = signs
 
-        return self.__sendBack_angle, self.__sendBack_speed
+        if 0.2 <= distance <= 0.60:
+            # self.signs = signs
+
+            if self.signs == 'highway_entrance_sign':
+                self.flag = 0
+                self.__timer_intersection(time_straight=0.6, sendBack_speed=100, sendBack_angle=-15, setpoint_turn=88)
+            elif self.signs == 'stop_sign':
+                self.flag = 0
+                self.__timer_stop(timer_stop=2, timer_straight=1.2, speed_straight=100)
+            elif self.signs == 'green':
+                self.flag = 0
+                self.__timer_intersection(time_straight=1, sendBack_speed=90, sendBack_angle=25, setpoint_turn=85)
+            elif self.signs == 'red':
+                self.flag = 1
+                self.__timer_light()
+            elif self.signs == 'yellow':
+                self.flag = 1
+                self.__timer_light()
+            elif self.signs == 'no_entry_road_sign':
+                self.flag = 0
+                self.__timer_intersection(time_straight=0.8, sendBack_speed=100, sendBack_angle=25, setpoint_turn=70)
+                
+        print(self.flag)
+        # Send data to STM
+        if self.flag == 0:
+            self.stm32(speed=self.__sendBack_speed,angle=self.__sendBack_angle)

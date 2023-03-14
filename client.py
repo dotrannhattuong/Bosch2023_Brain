@@ -9,14 +9,14 @@ import time
 
 def main():
     # --------- Segment ---------#
-    segment = Unet(weights='bosch_sig_1c_16x12.onnx')
+    segment = Unet(weights='./weights/unet/unet_pytorch_8x16_pretrain.onnx')
     kernel = np.ones((5,5),np.uint8)
 
     # --------- Communication ---------#
     stm32 = Communication(port='/dev/ttyACM0')
 
     # --------- Controller ---------#
-    Control = Controller(0.3, 0.05)
+    Control = Controller(0.4, 0.05)
     
     # --------- RealSense ---------# 
     realsense = RealSense()
@@ -30,13 +30,11 @@ def main():
     
     while True:
         try:   
-            color_image, depth_frame, depth_colormap = realsense()
+            color_image, bg_removed, depth_colormap, images = realsense()
 
             # ------------------ Predict ------------------#
             # --------- Segment ---------#
             pred = segment(color_image)
-            # output = img_processing(color_image)
-            # post_img = cv2.bitwise_or(pred, output)
 
             cv2.imshow('input', cv2.resize(color_image, (160, 80)))
             cv2.imshow('pred', pred)
@@ -50,7 +48,7 @@ def main():
 
             # ------------------ Workspace ------------------#
             # --------- Controller ---------#
-            sendBack_angle, sendBack_speed = Control(pred, sendBack_speed=100, height=30, signal='straight', area=10)
+            sendBack_angle, sendBack_speed = Control(pred, sendBack_speed=100, height=45, signal='straight', area=10)
             
             # --------- Send Data ---------#
             stm32(speed=sendBack_speed,angle=sendBack_angle)

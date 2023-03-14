@@ -24,12 +24,12 @@ class RealSense:
             print("The demo requires Depth camera with Color sensor")
             exit(0)
 
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
         if device_product_line == 'L500':
-            config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 60)
+            config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
         else:
-            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
+            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
         # Start streaming
         profile = self.pipeline.start(config)
@@ -61,19 +61,23 @@ class RealSense:
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
         images = np.hstack((bg_removed, depth_colormap))
 
-        return bg_removed, depth_colormap, images
+        return color_image, bg_removed, depth_frame, images
 
 if __name__ == "__main__":
     realsense = RealSense()
 
     try:
         while True:
-            color_image, depth_frame, depth_colormap, images = realsense()
+            color_image, bg_removed, depth_colormap, images = realsense()
+
+            print(color_image.shape)
+            print(bg_removed.shape)
 
             depth_colormap_dim = depth_colormap.shape
             color_colormap_dim = color_image.shape
 
             cv2.imshow('RealSense', cv2.resize(images, (1280//4, 480//4)))
+            cv2.imshow('color_image', cv2.resize(color_image, (1280//4, 480//4)))
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
