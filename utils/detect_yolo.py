@@ -7,9 +7,9 @@ import tensorrt as trt
 from PIL import Image
 from pathlib import Path
 from collections import OrderedDict,namedtuple
-
+import copy
 # RealSense
-from my_realsense import RealSense
+# from my_realsense import RealSense
 
 class YOLO_DETECT:
     def __init__(self, engine_path='./best-nms.trt', imgsz=(418,418), device='cuda:0'):
@@ -43,7 +43,9 @@ class YOLO_DETECT:
         self.context = model.create_execution_context()
 
         # Visualize
-        self.__names = ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', 'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', 'stop_sign', 'traffic_light', 'none']
+        self.__names = ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', \
+        'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', \
+        'stop_sign', 'traffic_light', 'none']
 
         self.__colors = {name:[random.randint(0, 255) for _ in range(3)] for i,name in enumerate(self.__names)}
 
@@ -102,24 +104,24 @@ class YOLO_DETECT:
         return boxes
 
     def warmup(self):
-        print('******* WARMUP *******')
+        print('***** WARMUP *****')
         # warmup for 10 times
         for _ in range(20):
             tmp = torch.randn(1,3,418,418).to(self.__device)
             self._binding_addrs['images'] = int(tmp.data_ptr())
             self.context.execute_v2(list(self._binding_addrs.values()))
 
-    def __call__(self, img):
+    def __call__(self, bg_removed, depth_colormap, vis = False):
         ####### Preprocessing #######
-        im = self.preproc(img)
+        im = self.preproc(bg_removed)
         
         #######    Predict    #######
         start = time.perf_counter()
         self._binding_addrs['images'] = int(im.data_ptr())
         self.context.execute_v2(list(self._binding_addrs.values()))
 
-        print(f'Cost {time.perf_counter()-start} s')
-        print(1/(time.perf_counter() - start), 'FPS')
+        # print(f'Cost {time.perf_counter()-start} s')
+        # print(1/(time.perf_counter() - start), 'FPS')
 
         #######    Results    #######
         nums = self.__bindings['num_dets'].data
@@ -130,47 +132,114 @@ class YOLO_DETECT:
         boxes = boxes[0,:nums[0][0]]
         scores = scores[0,:nums[0][0]]
         classes = classes[0,:nums[0][0]]
+        #######    Information    #######
+        # print(len(classes))
+        score = 0
+        log = 'None'
+        if len(classes) == 0:
+            class_id = 10
+            name = self.__names[class_id]
+            c1 = 0
+            c2 = 0
+            s = 0
+            log = 'None'
+        else:
+            score = scores.cpu().numpy()[0]
+            class_id = classes.cpu().numpy()[0]
+            # print(1+score)
+            if 1+score > 0.3:
+                box = self.postprocess(boxes[0], self.__ratio, self.__dwdh).round().int()
+                x1, y1 = box[:2]
+                x2, y2 = box[2:]
+                c1, c2 = int((x1+x2)/2), int((y1+y2)/2) # center bbox
 
-        return boxes, scores, classes
+                s = abs(x2-x1)*abs(y2-y1)
+                # print('--'*10, s)
+                if c1 < bg_removed.shape[1]//2 or s < 2500:
+                    class_id = 10
+                    name = self.__names[class_id]
+                    c1 = 0
+                    c2 = 0
+                    s = 0
+                    log = 'center / s'
+                else:
+                    name = self.__names[class_id]
+                    # traffic light
+                    if class_id == 9:
+                        color_trafficlight = self.traffic_light_det(bg_removed, box)
+                        class_id = 11 + color_trafficlight # do vang xanh
+                        if class_id == 11:
+                            name = 'red'
+                        elif class_id == 12:
+                            name = 'yellow'
+                        elif class_id == 13:
+                            name = 'green'   
+                    if vis:
+                        # print(name)
+                        cv2.rectangle(bg_removed,(int(x1),int(y1)), (int(x2),int(y2)),(255, 0, 255),2)
+                        cv2.putText(bg_removed, name, (int(box[0]), int(box[1]) - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 0, 255), thickness=2)
+                log = 'ok'
+            else:
+                class_id = 10
+                name = self.__names[class_id]
+                c1 = 0
+                c2 = 0
+                s = 0
+                log = "None"
 
-    def visualize(self, img, boxes, scores, classes, depth_frame=None):
-        for box,score,cl in zip(boxes,scores,classes):
-            box = self.postprocess(box,self.__ratio,self.__dwdh).round().int()
-            name = self.__names[cl]
-            color = self.__colors[name]
-            name += ' ' + str(round(float(score),3))
-            x1, y1 = box[:2]
-            x2, y2 = box[2:]
+        return boxes, 1+score, classes, class_id, bg_removed, (c1, c2), name, s, log
 
-            if depth_frame:
-                d1, d2 = int((x1+x2)/2), int((y1+y2)/2)
-                zDepth = depth_frame.get_distance(int(d1),int(d2))  # by default realsense returns distance in meters
-                tl = 3 #line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
-                tf = max(tl - 1, 1)  # font thickness
-                cv2.putText(img, str(round((zDepth* 100 ),2))+" cm", (x1 + 200, y1), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
+    # def visualize(self, img, boxes, scores, classes, depth_frame=None):
+    #     if len(classes) != 0:
+    #         box = self.postprocess(boxes[0], self.__ratio, self.__dwdh).round().int()
+    #         name = self.__names[classes[0]]
+    #         color = self.__colors[name]
+    #         name += ' ' + str(round(float(score),3))
+    #         x1, y1 = box[:2]
+    #         x2, y2 = box[2:]
+            
+    #         if depth_frame:
+    #             d1, d2 = int((x1+x2)/2), int((y1+y2)/2)
+    #             zDepth = depth_frame.get_distance(int(d1),int(d2))  # by default realsense returns distance in meters
+    #             tl = 3 #line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
+    #             tf = max(tl - 1, 1)  # font thickness
+    #             cv2.putText(img, str(round((zDepth* 100 ),2))+" cm", (x1 + 200, y1), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
 
-            cv2.rectangle(img,(int(x1),int(y1)), (int(x2),int(y2)),color,2)
-            cv2.putText(img, name, (int(box[0]), int(box[1]) - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, thickness=2)
+    #         cv2.rectangle(img,(int(x1),int(y1)), (int(x2),int(y2)),color,2)
+    #         cv2.putText(img, name, (int(box[0]), int(box[1]) - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, thickness=2)
+        
+    #     return img
 
-        return img
+    # def visualize(self, img, boxes, scores, classes, depth_frame=None):
+        # for box,score,cl in zip(boxes,scores,classes):
+        #     box = self.postprocess(box,self.__ratio,self.__dwdh).round().int()
+        #     name = self.__names[cl]
+        #     color = self.__colors[name]
+        #     name += ' ' + str(round(float(score),3))
+        #     x1, y1 = box[:2]
+        #     x2, y2 = box[2:]
+            
+        #     if depth_frame:
+        #         d1, d2 = int((x1+x2)/2), int((y1+y2)/2)
+        #         zDepth = depth_frame.get_distance(int(d1),int(d2))  # by default realsense returns distance in meters
+        #         tl = 3 #line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
+        #         tf = max(tl - 1, 1)  # font thickness
+        #         cv2.putText(img, str(round((zDepth* 100 ),2))+" cm", (x1 + 200, y1), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
 
-    @staticmethod
-    def traffic_light_det(img, boxes): # boxes: x,y,w,h
+        #     cv2.rectangle(img,(int(x1),int(y1)), (int(x2),int(y2)),color,2)
+        #     cv2.putText(img, name, (int(box[0]), int(box[1]) - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, thickness=2)
+        # return img
+
+    def traffic_light_det(self, img, box): # boxes: x,y,w,h
         '''
         input: img, box
         output: 0: red, 1: yellow, 2: green
         '''
         # TODO: Check boxes
-        x, y, w, h = self.__imgsz[0]*boxes[0], self.__imgsz[0]*boxes[1], self.__imgsz[0]*boxes[2], self.__imgsz[0]*boxes[3]
-        
-        x1 = int(x - w/2)
-        y1 = int(y - h/2)
-        x2 = int(x + w/2)
-        y2 = int(y + h/2)
-
-        img_crop = img_crop[y1:y2, x1:x2]
+        x1, y1 = box[:2]
+        x2, y2 = box[2:]
+        img_crop = img[int(y1):int(y2), int(x1):int(x2)]
         img_hsv = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
-
         maskg = cv2.inRange(img_hsv, self.GHSVLOW, self.GHSVHIGH)
         masky = cv2.inRange(img_hsv, self.YHSVLOW, self.YHSVHIGH)
         maskr_1 = cv2.inRange(img_hsv, self.RHSVLOW, self.RHSVHIGH)
@@ -180,6 +249,37 @@ class YOLO_DETECT:
         area = [self.check(mask) for mask in [maskr, masky, maskg]]
         index = area.index(max(area))
         return index
+
+    # def traffic_light_det(self, img, boxes): # boxes: x,y,w,h
+    #     '''
+    #     input: img, box
+    #     output: 0: red, 1: yellow, 2: green
+    #     '''
+    #     # TODO: Check boxes
+
+    #     # box = self.postprocess(boxes,self.__ratio,self.__dwdh).round().int()
+
+    #     dwdh = torch.tensor(self.__dwdh*2).to(boxes.device)
+    #     _boxes = copy.deepcopy(boxes)
+    #     _boxes -= dwdh
+    #     _boxes /= self.__ratio
+    #     _boxes = _boxes.round().int()
+        
+    #     x1, y1 = _boxes[:2]
+    #     x2, y2 = _boxes[2:]
+
+    #     img_crop = img[int(y1):int(y2), int(x1):int(x2)]
+    #     img_hsv = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
+    #     cv2.imwrite("img_crop.png", img_crop)
+    #     maskg = cv2.inRange(img_hsv, self.GHSVLOW, self.GHSVHIGH)
+    #     masky = cv2.inRange(img_hsv, self.YHSVLOW, self.YHSVHIGH)
+    #     maskr_1 = cv2.inRange(img_hsv, self.RHSVLOW, self.RHSVHIGH)
+    #     maskr_2 = cv2.inRange(img_hsv, self.RHSVLOW_1, self.RHSVHIGH_1)
+    #     maskr = maskr_1 | maskr_2
+
+    #     area = [self.check(mask) for mask in [maskr, masky, maskg]]
+    #     index = area.index(max(area))
+    #     return index
 
     @staticmethod
     def check(mask):
@@ -197,35 +297,48 @@ if __name__ == "__main__":
     detector = YOLO_DETECT(engine_path='./weights/yolo/best-v1-nms.trt', imgsz=(448,448))
 
     ####### Image #######
-    img = cv2.imread('./utils/images/448.png')
+    img = cv2.imread('2134.png')
 
     # Detect
     boxes, scores, classes = detector(img)
 
+    print(boxes, scores, classes, img.shape)
+    
+    cv2.imwrite('b.png', img)
+    # Demo traffic light
+    if 9 in list(classes.cpu().numpy()):
+        box_trafficlight = boxes[list(classes.cpu().numpy()).index(9)]
+        color_trafficlight = detector.traffic_light_det(img, box_trafficlight)
+        print(color_trafficlight)
+
     # Visualize
+    cv2.imwrite('a.png', img)
+    print(boxes, scores, classes, img.shape)
     img_pred = detector.visualize(img, boxes, scores, classes)
 
+    
     # Write images
     cv2.imwrite('test.png', img_pred)
+    
 
     ####### RealSense #######
-    realsense = RealSense()
+    # realsense = RealSense()
 
-    while True:
-        # Get image
-        color_image, depth_frame, depth_colormap = realsense()
+    # while True:
+    #     # Get image
+    #     color_image, depth_frame, depth_colormap = realsense()
 
-        # Detect
-        boxes, scores, classes = detector(color_image)
+    #     # Detect
+    #     boxes, scores, classes = detector(color_image)
 
-        # Visualize
-        img_pred = detector.visualize(color_image, boxes, scores, classes, depth_frame)
-        print(boxes)
-        cv2.imwrite('pred.png', img_pred)
+    #     # Visualize
+    #     img_pred = detector.visualize(color_image, boxes, scores, classes, depth_frame)
+    #     print(boxes)
+    #     cv2.imwrite('pred.png', img_pred)
         # Show images
         # cv2.imshow('RealSense', img_pred)
 
         # if cv2.waitKey(1) & 0xFF == ord('q'):
         #     # Stop streaming
         #     realsense.pipeline.stop()
-        #     break        
+        #     break
