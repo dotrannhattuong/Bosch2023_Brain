@@ -1,5 +1,9 @@
 # Bosch2023_Brain
 
+<p align="center">
+ <img src="docs/IMG_2492.png" width="800">
+</p>
+
 # To do task 
 - [x] [Embedded System](https://github.com/dotrannhattuong/Embedded_System)
 - [x] [Lane Detection](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/my_unet.py) 
