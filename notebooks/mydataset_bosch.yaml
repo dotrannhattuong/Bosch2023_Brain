@@ -1,0 +1,4 @@
+train: /media/aivn24/partition1/HungAn/Tuong/OD/Dataset_Bosch_OD/train
+val: /media/aivn24/partition1/HungAn/Tuong/OD/Dataset_Bosch_OD/val
+nc: 11
+names: ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', 'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', 'stop_sign', 'traffic_light', 'none']

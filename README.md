@@ -19,6 +19,13 @@
 </p>
 
 # [Dataset](https://github.com/dotrannhattuong/Bosch2023_Brain/releases/tag/Dataset)
+
+[`Object Detection`](https://github.com/dotrannhattuong/Bosch2023_Brain/notebooks/mydataset_bosch.yaml)
+```
+nc: 11
+names: ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', 'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', 'stop_sign', 'traffic_light', 'none']
+```
+
 ## <div align="center">Overview</div>
 <p align="center">
  <img src="training\images\2114.png" width="800">
