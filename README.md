@@ -10,7 +10,7 @@
 - [x] [Object Detection](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/docs/README_YOLO.md) - [Inference](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/detect_yolo.py)
 - [x] [Communication Jetson Nano with NucleoF401RE](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/ser.py)
 - [x] Master-Slave Communication Between Two Jetson Nano
-- [x] [IMU](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/docs/README_IMU.md) [Inference](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/my_bno055.py)
+- [x] [IMU](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/docs/README_IMU.md) - [Inference](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/my_bno055.py)
 - [x] [RealSense](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/my_realsense.py)
 
 # Diagram
@@ -20,7 +20,7 @@
 
 # [Dataset](https://github.com/dotrannhattuong/Bosch2023_Brain/releases/tag/Dataset)
 
-[`Object Detection`](https://github.com/dotrannhattuong/Bosch2023_Brain/notebooks/mydataset_bosch.yaml)
+[`Object Detection`](https://github.com/dotrannhattuong/Bosch2023_Brain/tree/main/notebooks)
 ```
 nc: 11
 names: ['crosswalk_sign', 'highway_entrance_sign', 'highway_exit_sign', 'no_entry_road_sign', 'one_way_sign', 'parking_sign', 'priority_sign', 'round_about_sign', 'stop_sign', 'traffic_light', 'none']
