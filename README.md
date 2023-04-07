@@ -1,6 +1,7 @@
 # Bosch2023_Brain
 
 # To do task 
+- [x] [Embedded System](https://github.com/dotrannhattuong/Embedded_System)
 - [x] [Lane Detection](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/my_unet.py) 
 - [x] [Object Detection](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/docs/README_YOLO.md) - [Inference](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/detect_yolo.py)
 - [x] [Communication Jetson Nano with NucleoF401RE](https://github.com/dotrannhattuong/Bosch2023_Brain/blob/main/utils/ser.py)
